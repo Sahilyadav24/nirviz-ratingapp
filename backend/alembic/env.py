@@ -18,7 +18,8 @@ settings = get_settings()
 
 # ─── Alembic config ───────────────────────────────────────────────────────────
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.database_url_sync)
+# Use escape to handle special characters like % in passwords
+config.set_main_option("sqlalchemy.url", settings.database_url_sync.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
