@@ -1,8 +1,10 @@
 from app.core.config import get_settings
+from app.core.logger import get_logger
 from app.services.sms import send_sms
 from app.services.email_service import send_shopkeeper_email
 
 settings = get_settings()
+logger = get_logger("notification")
 
 
 def notify_customer(name: str, phone: str, prize_name: str, prize_description: str) -> None:
@@ -15,8 +17,9 @@ def notify_customer(name: str, phone: str, prize_name: str, prize_description: s
     )
     try:
         send_sms(phone, message)
-    except Exception:
-        pass  # notification failure should not block the response
+        logger.info(f"Customer SMS notification sent to +91{phone}")
+    except Exception as e:
+        logger.error(f"Failed to send customer SMS to +91{phone}: {e}")
 
 
 def notify_shopkeeper(name: str, phone: str, address: str, prize_name: str) -> None:
@@ -33,10 +36,11 @@ def notify_shopkeeper(name: str, phone: str, address: str, prize_name: str) -> N
     )
     try:
         send_sms(shopkeeper, message)
-    except Exception:
-        pass  # notification failure should not block the response
+        logger.info(f"Shopkeeper SMS notification sent to +91{shopkeeper}")
+    except Exception as e:
+        logger.error(f"Failed to send shopkeeper SMS to +91{shopkeeper}: {e}")
 
     try:
         send_shopkeeper_email(name, phone, address, prize_name)
-    except Exception:
-        pass  # email failure should not block the response
+    except Exception as e:
+        logger.error(f"Failed to send shopkeeper email: {e}")

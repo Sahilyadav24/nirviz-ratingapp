@@ -1,0 +1,11 @@
+2026-04-08 17:04:29  INFO      [main]  NIRVIZ Resort API starting up...
+2026-04-08 17:05:23  INFO      [main]  NIRVIZ Resort API shutting down.
+2026-04-08 17:17:15  INFO      [main]  NIRVIZ Resort API starting up...
+2026-04-08 17:20:04  INFO      [email]  OTP email sent successfully to skyadav98968@gmail.com
+2026-04-08 17:20:04  INFO      [otp]  OTP sent to skyadav98968@gmail.com for phone +919992738490
+2026-04-08 17:23:46  INFO      [otp]  OTP verified successfully for +919992738490
+2026-04-08 17:23:46  INFO      [customer]  Returning customer: Shivender (+919992738490)
+2026-04-08 17:23:46  INFO      [customer]  Shivender (+919992738490) won: Free Dessert
+2026-04-08 17:23:46  INFO      [notification]  Customer SMS notification sent to +919992738490
+2026-04-08 17:23:46  INFO      [notification]  Shopkeeper SMS notification sent to +919876543210
+2026-04-08 17:23:50  INFO      [email]  Shopkeeper email sent to sahilrao2424@gmail.com — customer: Shivender, prize: Free Dessert

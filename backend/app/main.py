@@ -6,14 +6,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
 from app.core.database import engine, Base
 from app.api.routes import customer, otp, prize, health, qr, admin
+from app.core.logger import get_logger
+
+logger = get_logger("main")
 
 settings = get_settings()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logger.info("NIRVIZ Resort API starting up...")
     yield
-    # Shutdown: dispose engine
+    logger.info("NIRVIZ Resort API shutting down.")
     await engine.dispose()
 
 

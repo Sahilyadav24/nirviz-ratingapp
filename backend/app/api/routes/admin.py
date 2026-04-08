@@ -8,6 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.database import get_db
+from app.core.logger import get_logger
+
+logger = get_logger("admin")
 from app.models.customer import Customer
 from app.models.prize import Prize
 from app.models.prize_assignment import PrizeAssignment
@@ -53,7 +56,10 @@ async def get_all_customers(
     db: AsyncSession = Depends(get_db),
 ):
     if x_admin_password != settings.admin_password:
+        logger.warning("Admin dashboard: invalid password attempt")
         raise HTTPException(status_code=401, detail="Invalid admin password.")
+
+    logger.info("Admin dashboard accessed")
 
     result = await db.execute(
         select(Customer).order_by(Customer.created_at.desc())

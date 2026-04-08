@@ -3,8 +3,10 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 from app.core.config import get_settings
+from app.core.logger import get_logger
 
 settings = get_settings()
+logger = get_logger("email")
 
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 587
@@ -13,6 +15,7 @@ SMTP_PORT = 587
 def send_shopkeeper_email(customer_name: str, customer_phone: str, customer_address: str, prize_name: str) -> None:
     """Notify shopkeeper via email when a customer wins a prize."""
     if not settings.shopkeeper_email:
+        logger.warning("SHOPKEEPER_EMAIL not set — skipping shopkeeper email")
         return
 
     msg = MIMEMultipart()
@@ -34,10 +37,15 @@ Prize Won : {prize_name}
 """
     msg.attach(MIMEText(body, "plain"))
 
-    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-        server.starttls()
-        server.login(settings.gmail_sender, settings.gmail_app_password)
-        server.sendmail(settings.gmail_sender, settings.shopkeeper_email, msg.as_string())
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls()
+            server.login(settings.gmail_sender, settings.gmail_app_password)
+            server.sendmail(settings.gmail_sender, settings.shopkeeper_email, msg.as_string())
+        logger.info(f"Shopkeeper email sent to {settings.shopkeeper_email} — customer: {customer_name}, prize: {prize_name}")
+    except Exception as e:
+        logger.error(f"Failed to send shopkeeper email to {settings.shopkeeper_email}: {e}")
+        raise
 
 
 def send_otp_email(to_email: str, otp: str) -> None:
@@ -61,7 +69,12 @@ Do not share this with anyone.
 """
     msg.attach(MIMEText(body, "plain"))
 
-    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-        server.starttls()
-        server.login(settings.gmail_sender, settings.gmail_app_password)
-        server.sendmail(settings.gmail_sender, to_email, msg.as_string())
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls()
+            server.login(settings.gmail_sender, settings.gmail_app_password)
+            server.sendmail(settings.gmail_sender, to_email, msg.as_string())
+        logger.info(f"OTP email sent successfully to {to_email}")
+    except Exception as e:
+        logger.error(f"Failed to send OTP email to {to_email}: {e}")
+        raise
