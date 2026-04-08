@@ -48,20 +48,37 @@ class Settings(BaseSettings):
     next_public_api_url: str = "http://localhost:8000"
     next_public_google_review_url: str = ""
 
+    # Optional: set full DATABASE_URL directly (overrides individual DB_* vars)
+    database_url_override: str = ""
+
     @property
     def database_url(self) -> str:
         """Async URL for SQLAlchemy (asyncpg driver)."""
+        if self.database_url_override:
+            url = self.database_url_override
+            if url.startswith("postgresql://"):
+                url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            if "?" not in url:
+                url += "?ssl=require"
+            return url
         return (
             f"postgresql+asyncpg://{self.db_user}:{self.db_password}"
-            f"@{self.db_host}:{self.db_port}/{self.db_name}"
+            f"@{self.db_host}:{self.db_port}/{self.db_name}?ssl=require"
         )
 
     @property
     def database_url_sync(self) -> str:
         """Sync URL for Alembic migrations."""
+        if self.database_url_override:
+            url = self.database_url_override
+            if "+asyncpg" in url:
+                url = url.replace("+asyncpg", "", 1)
+            if "?" not in url:
+                url += "?sslmode=require"
+            return url
         return (
             f"postgresql+psycopg2://{self.db_user}:{self.db_password}"
-            f"@{self.db_host}:{self.db_port}/{self.db_name}"
+            f"@{self.db_host}:{self.db_port}/{self.db_name}?sslmode=require"
         )
 
     @property
