@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Mobile-first base */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  @apply bg-amber-50 text-gray-800 min-h-screen;
+}
+
+/* OTP input boxes */
+.otp-box {
+  @apply w-11 h-14 text-center text-xl font-bold border-2 border-gray-300 rounded-lg
+         focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30
+         transition-colors;
+}
