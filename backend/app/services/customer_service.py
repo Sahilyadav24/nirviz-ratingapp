@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone, timedelta
 
 from fastapi import HTTPException, status
 from jose import JWTError
@@ -6,11 +7,15 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.core.logger import get_logger
 from app.core.security import decode_access_token
 from app.models.customer import Customer
+from app.models.prize_assignment import PrizeAssignment
 from app.services.prize_service import assign_prize
 from app.services.notification import notify_customer, notify_shopkeeper
+
+settings = get_settings()
 
 logger = get_logger("customer")
 
@@ -53,6 +58,25 @@ async def register_customer(
 
     if existing:
         logger.info(f"Returning customer: {existing.name} (+91{phone})")
+
+        # ── Daily limit check ─────────────────────────────────────────────────
+        if settings.daily_limit_hours > 0:
+            since = datetime.now(tz=timezone.utc) - timedelta(hours=settings.daily_limit_hours)
+            recent = await db.scalar(
+                select(PrizeAssignment)
+                .where(
+                    PrizeAssignment.customer_id == existing.id,
+                    PrizeAssignment.assigned_at >= since,
+                )
+                .limit(1)
+            )
+            if recent:
+                logger.warning(f"Daily limit hit for +91{phone}")
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=f"You've already participated in the last {settings.daily_limit_hours} hours. Please visit us again later!",
+                )
+
         customer = existing
     else:
         customer = Customer(

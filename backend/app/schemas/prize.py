@@ -1,4 +1,5 @@
-from pydantic import BaseModel
+from typing import Optional
+from pydantic import BaseModel, field_validator
 
 
 class PrizeResponse(BaseModel):
@@ -9,13 +10,34 @@ class PrizeResponse(BaseModel):
 class PrizeCreate(BaseModel):
     name: str
     description: str
-    probability: float          # 0.0 to 1.0 — must sum to 1.0 across all active prizes
+    probability: float
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "name": "Free Dessert",
-                "description": "A complimentary dessert on your next visit!",
-                "probability": 0.3,
-            }
-        }
+    @field_validator("probability")
+    @classmethod
+    def validate_probability(cls, v: float) -> float:
+        if not (0.0 < v <= 1.0):
+            raise ValueError("Probability must be between 0 and 1")
+        return round(v, 4)
+
+
+class PrizeUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    probability: Optional[float] = None
+    is_active: Optional[bool] = None
+
+    @field_validator("probability")
+    @classmethod
+    def validate_probability(cls, v: Optional[float]) -> Optional[float]:
+        if v is not None and not (0.0 < v <= 1.0):
+            raise ValueError("Probability must be between 0 and 1")
+        return round(v, 4) if v is not None else v
+
+
+class PrizeAdminResponse(BaseModel):
+    id: str
+    name: str
+    description: str
+    probability: float
+    is_active: bool
+    total_assigned: int

@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     otp_max_attempts: int = 3
     otp_cooldown_minutes: int = 10
 
+    daily_limit_hours: int = 15   # 0 = disabled, else hours between visits per customer
+
     next_public_api_url: str = "http://localhost:8000"
     next_public_google_review_url: str = ""
 
