@@ -10,6 +10,7 @@ interface Visit {
 interface CustomerRecord {
   name: string;
   phone: string;
+  email: string | null;
   address: string;
   visit_count: number;
   visits: Visit[];
@@ -89,10 +90,11 @@ export default function AdminPage() {
   const downloadCSV = () => {
     if (!data) return;
     const rows = [
-      ["Name", "Phone", "Address", "Total Visits", "Prizes Won", "First Visit (IST)", "Last Visit (IST)"],
+      ["Name", "Phone", "Email", "Address", "Total Visits", "Prizes Won", "First Visit (IST)", "Last Visit (IST)"],
       ...data.customers.map((c) => [
         c.name,
         `+91${c.phone}`,
+        c.email ?? "—",
         `"${c.address.replace(/"/g, '""')}"`,
         c.visit_count,
         `"${c.visits.map((v) => v.prize_name).join(", ")}"`,
@@ -212,6 +214,7 @@ export default function AdminPage() {
                 <tr className="border-b border-gray-100 bg-amber-50">
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Name</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Phone</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Email</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Address</th>
                   <th className="text-center px-4 py-3 font-semibold text-gray-600">Visits</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Last Prize Won</th>
@@ -246,6 +249,7 @@ export default function AdminPage() {
                         {c.name}
                       </td>
                       <td className="px-4 py-3 text-gray-600">+91{c.phone}</td>
+                      <td className="px-4 py-3 text-gray-500 text-xs">{c.email ?? <span className="text-gray-300">—</span>}</td>
                       <td className="px-4 py-3 text-gray-500 max-w-[180px]">
                         <span className="block truncate">{c.address}</span>
                       </td>
@@ -270,7 +274,7 @@ export default function AdminPage() {
                           <td className="px-8 py-2 text-xs text-gray-400 italic">
                             Visit {j + 1}
                           </td>
-                          <td colSpan={3} className="px-4 py-2 text-xs text-gray-500">
+                          <td colSpan={4} className="px-4 py-2 text-xs text-gray-500">
                             {v.visited_at}
                           </td>
                           <td className="px-4 py-2 text-xs text-brand-dark font-semibold">
