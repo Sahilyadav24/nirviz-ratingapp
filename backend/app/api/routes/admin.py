@@ -37,6 +37,7 @@ class VisitRecord(BaseModel):
 class CustomerRecord(BaseModel):
     name: str
     phone: str
+    email: Optional[str]
     address: str
     visit_count: int
     visits: list[VisitRecord]
@@ -94,6 +95,7 @@ async def get_all_customers(
         records.append(CustomerRecord(
             name=customer.name,
             phone=customer.phone,
+            email=customer.email,
             address=customer.address,
             visit_count=len(visits) if visits else 1,
             visits=visits,

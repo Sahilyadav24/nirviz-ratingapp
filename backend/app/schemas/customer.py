@@ -1,10 +1,12 @@
-from pydantic import BaseModel, field_validator
+from typing import Optional
+from pydantic import BaseModel, EmailStr, field_validator
 import re
 
 
 class CustomerCreateRequest(BaseModel):
     name: str
     phone: str
+    email: Optional[EmailStr] = None
     address: str
     session_token: str          # issued by /otp/verify — proves OTP was passed
 

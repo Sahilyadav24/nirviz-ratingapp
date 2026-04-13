@@ -21,6 +21,7 @@ async def register_customer(
     address: str,
     session_token: str,
     db: AsyncSession,
+    email: str | None = None,
 ) -> tuple[Customer, object]:
     """
     Validate session token, save customer, assign prize, send notifications.
@@ -58,6 +59,7 @@ async def register_customer(
             id=uuid.uuid4(),
             name=name,
             phone=phone,
+            email=email,
             address=address,
         )
         db.add(customer)

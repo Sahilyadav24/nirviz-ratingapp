@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timezone
+from typing import Optional
 
 from sqlalchemy import String, Text, DateTime
 from sqlalchemy.dialects.postgresql import UUID
@@ -16,6 +17,7 @@ class Customer(Base):
     )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     phone: Mapped[str] = mapped_column(String(15), unique=True, nullable=False, index=True)
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
     address: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

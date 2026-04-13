@@ -19,6 +19,7 @@ async def register_customer(
         address=payload.address,
         session_token=payload.session_token,
         db=db,
+        email=payload.email,
     )
     return CustomerCreateResponse(
         customer_id=str(customer.id),
