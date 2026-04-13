@@ -1,16 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Head from "next/head";
 import axios from "axios";
-import dynamic from "next/dynamic";
-
-const BarChart = dynamic(() => import("recharts").then((m) => m.BarChart), { ssr: false });
-const Bar = dynamic(() => import("recharts").then((m) => m.Bar), { ssr: false });
-const LineChart = dynamic(() => import("recharts").then((m) => m.LineChart), { ssr: false });
-const Line = dynamic(() => import("recharts").then((m) => m.Line), { ssr: false });
-const XAxis = dynamic(() => import("recharts").then((m) => m.XAxis), { ssr: false });
-const YAxis = dynamic(() => import("recharts").then((m) => m.YAxis), { ssr: false });
-const Tooltip = dynamic(() => import("recharts").then((m) => m.Tooltip), { ssr: false });
-const ResponsiveContainer = dynamic(() => import("recharts").then((m) => m.ResponsiveContainer), { ssr: false });
+import {
+  BarChart, Bar, LineChart, Line,
+  XAxis, YAxis, Tooltip, ResponsiveContainer,
+} from "recharts";
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 
@@ -66,6 +60,8 @@ export default function AdminPage() {
   // Analytics state
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   // Prize state
   const [prizes, setPrizes] = useState<Prize[]>([]);
@@ -529,14 +525,16 @@ export default function AdminPage() {
                   {/* Prize Distribution */}
                   <div className="bg-white rounded-xl shadow p-5">
                     <h3 className="font-semibold text-gray-700 mb-4">Prize Distribution</h3>
-                    <ResponsiveContainer width="100%" height={220}>
-                      <BarChart data={analytics.prize_distribution} margin={{ top: 0, right: 10, left: -10, bottom: 0 }}>
-                        <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                        <YAxis tick={{ fontSize: 11 }} />
-                        <Tooltip />
-                        <Bar dataKey="count" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
+                    {mounted && (
+                      <ResponsiveContainer width="100%" height={220}>
+                        <BarChart data={analytics.prize_distribution} margin={{ top: 0, right: 10, left: -10, bottom: 0 }}>
+                          <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                          <YAxis tick={{ fontSize: 11 }} />
+                          <Tooltip />
+                          <Bar dataKey="count" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
                   </div>
 
                   {/* Daily Registrations */}
@@ -544,7 +542,7 @@ export default function AdminPage() {
                     <h3 className="font-semibold text-gray-700 mb-4">Daily Registrations (Last 30 Days)</h3>
                     {analytics.daily_registrations.length === 0 ? (
                       <p className="text-sm text-gray-400 text-center py-8">No data yet</p>
-                    ) : (
+                    ) : mounted && (
                       <ResponsiveContainer width="100%" height={220}>
                         <LineChart data={analytics.daily_registrations} margin={{ top: 0, right: 10, left: -10, bottom: 0 }}>
                           <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(d) => d.slice(5)} />
@@ -562,7 +560,7 @@ export default function AdminPage() {
                     <p className="text-xs text-gray-400 mb-4">When customers register most often</p>
                     {analytics.peak_hours.length === 0 ? (
                       <p className="text-sm text-gray-400 text-center py-8">No data yet</p>
-                    ) : (
+                    ) : mounted && (
                       <ResponsiveContainer width="100%" height={220}>
                         <BarChart data={analytics.peak_hours} margin={{ top: 0, right: 10, left: -10, bottom: 0 }}>
                           <XAxis dataKey="hour" tick={{ fontSize: 11 }} tickFormatter={(h) => `${h}:00`} />
