@@ -217,7 +217,8 @@ export default function AdminPage() {
       await loadPrizes();
       flashSuccess("Prize updated successfully.");
     } catch (err: any) {
-      setPrizeError(err?.response?.data?.detail ?? "Failed to update prize.");
+      const detail = err?.response?.data?.detail;
+      setPrizeError(typeof detail === "string" ? detail : "Failed to update prize.");
     }
   };
 
@@ -240,7 +241,8 @@ export default function AdminPage() {
       await loadPrizes();
       flashSuccess("Prize deleted.");
     } catch (err: any) {
-      setPrizeError(err?.response?.data?.detail ?? "Failed to delete prize.");
+      const detail = err?.response?.data?.detail;
+      setPrizeError(typeof detail === "string" ? detail : "Failed to delete prize.");
     }
   };
 
@@ -262,7 +264,8 @@ export default function AdminPage() {
       await loadPrizes();
       flashSuccess("Prize added successfully.");
     } catch (err: any) {
-      setPrizeError(err?.response?.data?.detail ?? "Failed to add prize.");
+      const detail = err?.response?.data?.detail;
+      setPrizeError(typeof detail === "string" ? detail : "Failed to add prize.");
     }
   };
 
