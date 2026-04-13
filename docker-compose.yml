@@ -31,8 +31,8 @@ services:
         condition: service_healthy
     networks:
       - nirviz_net
-    volumes:
-      - ./backend:/app          # hot-reload in dev
+    #volumes:
+     # - ./backend:/app          # hot-reload in dev
     ports:
       - "8000:8000"             # exposed for direct access during dev
 
@@ -48,10 +48,10 @@ services:
       - backend
     networks:
       - nirviz_net
-    volumes:
-      - ./frontend:/app          # hot-reload in dev
-      - /app/node_modules        # keep container's node_modules
-      - /app/.next               # keep container's build cache
+    #volumes:
+     # - ./frontend:/app          # hot-reload in dev
+      #- /app/node_modules        # keep container's node_modules
+      #- /app/.next               # keep container's build cache
     ports:
       - "3000:3000"
 
