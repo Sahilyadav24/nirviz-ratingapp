@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, Query
 from pydantic import BaseModel
 from sqlalchemy import select, func, text
 from sqlalchemy.exc import IntegrityError
@@ -267,53 +267,85 @@ async def delete_prize(
 @router.get("/analytics")
 async def get_analytics(
     x_admin_password: Optional[str] = Header(None),
+    start_date: Optional[str] = Query(None, description="Start date YYYY-MM-DD (IST)"),
+    end_date: Optional[str] = Query(None, description="End date YYYY-MM-DD (IST)"),
     db: AsyncSession = Depends(get_db),
 ):
     _check_admin(x_admin_password)
 
-    # Prize distribution
-    prize_dist_rows = await db.execute(text("""
+    # Build optional date range filter (applied to IST dates)
+    date_filter_customers = ""
+    date_filter_assignments = ""
+    if start_date:
+        date_filter_customers += f" AND DATE(created_at AT TIME ZONE 'Asia/Kolkata') >= '{start_date}'"
+        date_filter_assignments += f" AND DATE(assigned_at AT TIME ZONE 'Asia/Kolkata') >= '{start_date}'"
+    if end_date:
+        date_filter_customers += f" AND DATE(created_at AT TIME ZONE 'Asia/Kolkata') <= '{end_date}'"
+        date_filter_assignments += f" AND DATE(assigned_at AT TIME ZONE 'Asia/Kolkata') <= '{end_date}'"
+
+    # Prize distribution (filtered by assignment date)
+    # Build JOIN condition with table alias for date filters
+    pa_date_filter = ""
+    if start_date:
+        pa_date_filter += f" AND DATE(pa.assigned_at AT TIME ZONE 'Asia/Kolkata') >= '{start_date}'"
+    if end_date:
+        pa_date_filter += f" AND DATE(pa.assigned_at AT TIME ZONE 'Asia/Kolkata') <= '{end_date}'"
+
+    prize_dist_rows = await db.execute(text(f"""
         SELECT p.name, COUNT(pa.id) AS count
         FROM prizes p
-        LEFT JOIN prize_assignments pa ON pa.prize_id = p.id
+        LEFT JOIN prize_assignments pa ON pa.prize_id = p.id {pa_date_filter}
         GROUP BY p.name
         ORDER BY count DESC
     """))
 
-    # Daily registrations — last 30 days (IST)
-    daily_rows = await db.execute(text("""
+    # Daily registrations — last 30 days or filtered range (IST)
+    if start_date or end_date:
+        daily_where = f"WHERE 1=1 {date_filter_customers}"
+    else:
+        daily_where = "WHERE created_at >= NOW() - INTERVAL '30 days'"
+
+    daily_rows = await db.execute(text(f"""
         SELECT DATE(created_at AT TIME ZONE 'Asia/Kolkata') AS day, COUNT(*) AS count
         FROM customers
-        WHERE created_at >= NOW() - INTERVAL '30 days'
+        {daily_where}
         GROUP BY day
         ORDER BY day
     """))
 
-    # Total customers
-    total_customers = await db.scalar(select(func.count(Customer.id))) or 0
+    # Total customers (filtered)
+    total_customers_row = await db.execute(text(f"""
+        SELECT COUNT(*) FROM customers WHERE 1=1 {date_filter_customers}
+    """))
+    total_customers = total_customers_row.scalar() or 0
 
-    # Repeat visitors (more than 1 prize assignment)
-    repeat_result = await db.execute(text("""
+    # Repeat visitors (filtered)
+    repeat_result = await db.execute(text(f"""
         SELECT COUNT(*) FROM (
             SELECT customer_id
             FROM prize_assignments
+            WHERE 1=1 {date_filter_assignments}
             GROUP BY customer_id
             HAVING COUNT(*) > 1
         ) sub
     """))
     repeat_count = repeat_result.scalar() or 0
 
-    # Peak hours in IST
-    peak_rows = await db.execute(text("""
+    # Peak hours in IST (filtered)
+    peak_rows = await db.execute(text(f"""
         SELECT EXTRACT(HOUR FROM assigned_at AT TIME ZONE 'Asia/Kolkata')::int AS hour,
                COUNT(*) AS count
         FROM prize_assignments
+        WHERE 1=1 {date_filter_assignments}
         GROUP BY hour
         ORDER BY hour
     """))
 
-    # Total assignments
-    total_assignments = await db.scalar(select(func.count(PrizeAssignment.id))) or 0
+    # Total assignments (filtered)
+    total_assignments_row = await db.execute(text(f"""
+        SELECT COUNT(*) FROM prize_assignments WHERE 1=1 {date_filter_assignments}
+    """))
+    total_assignments = total_assignments_row.scalar() or 0
 
     repeat_pct = round((repeat_count / total_customers * 100) if total_customers > 0 else 0, 1)
 

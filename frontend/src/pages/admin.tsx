@@ -47,6 +47,13 @@ interface Analytics {
   total_assignments: number;
 }
 
+// Parse "15 Apr 2026, 02:30 PM" → Date (using the date portion only)
+function parseAdminDate(s: string): Date | null {
+  const part = s.split(",")[0].trim(); // "15 Apr 2026"
+  const d = new Date(part);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [savedPassword, setSavedPassword] = useState("");
@@ -57,9 +64,15 @@ export default function AdminPage() {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [activeTab, setActiveTab] = useState<"customers" | "analytics" | "prizes">("customers");
 
+  // Customer date range filter
+  const [custFrom, setCustFrom] = useState("");
+  const [custTo, setCustTo] = useState("");
+
   // Analytics state
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [anaFrom, setAnaFrom] = useState("");
+  const [anaTo, setAnaTo] = useState("");
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
@@ -110,6 +123,10 @@ export default function AdminPage() {
     setExpanded(new Set());
     setPrizes([]);
     setActiveTab("customers");
+    setCustFrom("");
+    setCustTo("");
+    setAnaFrom("");
+    setAnaTo("");
   };
 
   const toggleExpand = (index: number) => {
@@ -121,17 +138,29 @@ export default function AdminPage() {
     });
   };
 
-  const filtered = (data?.customers ?? []).filter(
-    (c) =>
+  const filtered = (data?.customers ?? []).filter((c) => {
+    const matchSearch =
       c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.phone.includes(search)
-  );
+      c.phone.includes(search);
+    if (!matchSearch) return false;
+
+    if (custFrom) {
+      const d = parseAdminDate(c.last_visit);
+      if (!d || d < new Date(custFrom)) return false;
+    }
+    if (custTo) {
+      const d = parseAdminDate(c.last_visit);
+      // compare up to end of day
+      if (!d || d > new Date(custTo + "T23:59:59")) return false;
+    }
+    return true;
+  });
 
   const downloadCSV = () => {
     if (!data) return;
     const rows = [
       ["Name", "Phone", "Email", "Address", "Total Visits", "Prizes Won", "First Visit (IST)", "Last Visit (IST)"],
-      ...data.customers.map((c) => [
+      ...filtered.map((c) => [
         c.name,
         `+91${c.phone}`,
         c.email ?? "—",
@@ -152,6 +181,86 @@ export default function AdminPage() {
     URL.revokeObjectURL(url);
   };
 
+  const printPDF = () => {
+    if (!data) return;
+    const dateLabel =
+      custFrom || custTo
+        ? `${custFrom || "all"} to ${custTo || "all"}`
+        : "All dates";
+
+    const tableRows = filtered
+      .map(
+        (c, i) => `
+      <tr style="background:${i % 2 === 0 ? "#fff" : "#fafafa"}">
+        <td>${c.name}</td>
+        <td>+91${c.phone}</td>
+        <td style="font-size:10px">${c.email ?? "—"}</td>
+        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.address}</td>
+        <td style="text-align:center">${c.visit_count}</td>
+        <td>${c.visits.at(-1)?.prize_name ?? "—"}</td>
+        <td style="font-size:10px">${c.last_visit}</td>
+      </tr>`
+      )
+      .join("");
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>NIRVIZ Resort — Customer Report</title>
+  <style>
+    body { font-family: Arial, sans-serif; font-size: 12px; color: #333; padding: 24px; }
+    h1 { font-size: 20px; color: #92400e; margin: 0 0 4px; }
+    .meta { color: #777; font-size: 11px; margin-bottom: 18px; }
+    .stats { display: flex; gap: 32px; margin-bottom: 20px; background: #fffbeb;
+             padding: 12px 20px; border-radius: 8px; border: 1px solid #fde68a; }
+    .stat-n { font-size: 24px; font-weight: bold; color: #92400e; }
+    .stat-l { font-size: 10px; color: #777; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #fef3c7; text-align: left; padding: 7px 8px;
+         font-size: 11px; border-bottom: 2px solid #f59e0b; }
+    td { padding: 6px 8px; border-bottom: 1px solid #f3f4f6; font-size: 11px; vertical-align: top; }
+    @media print { body { padding: 0; } }
+  </style>
+</head>
+<body>
+  <h1>NIRVIZ Resort &mdash; Customer Report</h1>
+  <p class="meta">
+    Generated: ${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} IST
+    &nbsp;&bull;&nbsp; Date filter: ${dateLabel}
+    &nbsp;&bull;&nbsp; Search: ${search || "none"}
+  </p>
+  <div class="stats">
+    <div><div class="stat-n">${filtered.length}</div><div class="stat-l">Shown</div></div>
+    <div><div class="stat-n">${data.total_customers}</div><div class="stat-l">Total Customers</div></div>
+    <div><div class="stat-n">${data.today_registrations}</div><div class="stat-l">Today&rsquo;s Registrations</div></div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Phone</th>
+        <th>Email</th>
+        <th>Address</th>
+        <th>Visits</th>
+        <th>Last Prize</th>
+        <th>Last Visit (IST)</th>
+      </tr>
+    </thead>
+    <tbody>${tableRows}</tbody>
+  </table>
+</body>
+</html>`;
+
+    const win = window.open("", "_blank", "width=960,height=700");
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+      win.focus();
+      setTimeout(() => win.print(), 400);
+    }
+  };
+
   // ── Prize helpers ─────────────────────────────────────────────────────────
 
   const loadPrizes = async () => {
@@ -167,10 +276,16 @@ export default function AdminPage() {
     }
   };
 
-  const loadAnalytics = async () => {
+  const loadAnalytics = async (from?: string, to?: string) => {
     setAnalyticsLoading(true);
     try {
-      const res = await axios.get(`${API}/api/v1/admin/analytics`, { headers });
+      const params = new URLSearchParams();
+      const f = from ?? anaFrom;
+      const t = to ?? anaTo;
+      if (f) params.set("start_date", f);
+      if (t) params.set("end_date", t);
+      const qs = params.toString() ? `?${params.toString()}` : "";
+      const res = await axios.get(`${API}/api/v1/admin/analytics${qs}`, { headers });
       setAnalytics(res.data);
     } finally {
       setAnalyticsLoading(false);
@@ -328,7 +443,7 @@ export default function AdminPage() {
                 </button>
               )}
               {activeTab === "analytics" && (
-                <button onClick={loadAnalytics} disabled={analyticsLoading} className="text-sm text-brand underline disabled:opacity-50">
+                <button onClick={() => loadAnalytics()} disabled={analyticsLoading} className="text-sm text-brand underline disabled:opacity-50">
                   {analyticsLoading ? "Loading..." : "Refresh"}
                 </button>
               )}
@@ -392,21 +507,60 @@ export default function AdminPage() {
           {/* ── Customers Tab ─────────────────────────────────────────────── */}
           {activeTab === "customers" && (
             <>
-              <div className="flex gap-3 mb-4">
+              {/* Search + date filter row */}
+              <div className="flex flex-wrap gap-3 mb-4 items-end">
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search by name or phone..."
-                  className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/30"
+                  className="flex-1 min-w-[180px] border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/30"
                 />
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-gray-500 whitespace-nowrap">From</label>
+                  <input
+                    type="date"
+                    value={custFrom}
+                    onChange={(e) => setCustFrom(e.target.value)}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-gray-500 whitespace-nowrap">To</label>
+                  <input
+                    type="date"
+                    value={custTo}
+                    onChange={(e) => setCustTo(e.target.value)}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand"
+                  />
+                </div>
+                {(custFrom || custTo) && (
+                  <button
+                    onClick={() => { setCustFrom(""); setCustTo(""); }}
+                    className="text-xs text-gray-400 underline whitespace-nowrap"
+                  >
+                    Clear
+                  </button>
+                )}
                 <button
                   onClick={downloadCSV}
+                  className="bg-gray-100 text-gray-700 font-semibold px-4 py-2 rounded-lg text-sm whitespace-nowrap active:scale-95 transition-transform border border-gray-200"
+                >
+                  CSV
+                </button>
+                <button
+                  onClick={printPDF}
                   className="bg-brand text-white font-semibold px-4 py-2 rounded-lg text-sm whitespace-nowrap active:scale-95 transition-transform"
                 >
-                  Download CSV
+                  Print PDF
                 </button>
               </div>
+
+              {(custFrom || custTo) && (
+                <p className="text-xs text-amber-600 mb-3">
+                  Showing {filtered.length} of {data.total_customers} customers — filtered by last visit date
+                </p>
+              )}
 
               <div className="bg-white rounded-xl shadow overflow-x-auto">
                 <table className="w-full text-sm">
@@ -499,6 +653,44 @@ export default function AdminPage() {
           {/* ── Analytics Tab ─────────────────────────────────────────────── */}
           {activeTab === "analytics" && (
             <div>
+              {/* Date range filter for analytics */}
+              <div className="flex flex-wrap gap-3 items-end mb-5 bg-white rounded-xl shadow p-4">
+                <span className="text-sm font-medium text-gray-600 mr-1">Date range:</span>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-gray-500">From</label>
+                  <input
+                    type="date"
+                    value={anaFrom}
+                    onChange={(e) => setAnaFrom(e.target.value)}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-gray-500">To</label>
+                  <input
+                    type="date"
+                    value={anaTo}
+                    onChange={(e) => setAnaTo(e.target.value)}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand"
+                  />
+                </div>
+                <button
+                  onClick={() => loadAnalytics(anaFrom, anaTo)}
+                  disabled={analyticsLoading}
+                  className="bg-brand text-white font-semibold px-4 py-2 rounded-lg text-sm active:scale-95 transition-transform disabled:opacity-50"
+                >
+                  Apply
+                </button>
+                {(anaFrom || anaTo) && (
+                  <button
+                    onClick={() => { setAnaFrom(""); setAnaTo(""); loadAnalytics("", ""); }}
+                    className="text-xs text-gray-400 underline"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
               {analyticsLoading && (
                 <div className="text-center py-16 text-gray-400">Loading analytics...</div>
               )}
@@ -542,7 +734,12 @@ export default function AdminPage() {
 
                   {/* Daily Registrations */}
                   <div className="bg-white rounded-xl shadow p-5">
-                    <h3 className="font-semibold text-gray-700 mb-4">Daily Registrations (Last 30 Days)</h3>
+                    <h3 className="font-semibold text-gray-700 mb-4">
+                      Daily Registrations
+                      {anaFrom || anaTo
+                        ? ` (${anaFrom || "start"} – ${anaTo || "today"})`
+                        : " (Last 30 Days)"}
+                    </h3>
                     {analytics.daily_registrations.length === 0 ? (
                       <p className="text-sm text-gray-400 text-center py-8">No data yet</p>
                     ) : mounted && (

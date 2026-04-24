@@ -79,6 +79,18 @@ async def register_customer(
 
         customer = existing
     else:
+        # ── Email uniqueness check ────────────────────────────────────────────
+        if email:
+            existing_email = await db.scalar(
+                select(Customer).where(Customer.email == email)
+            )
+            if existing_email:
+                logger.warning(f"Duplicate email registration attempt: {email}")
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="This email is already registered. Each email can only be used once.",
+                )
+
         customer = Customer(
             id=uuid.uuid4(),
             name=name,
